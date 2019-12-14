@@ -216,5 +216,103 @@ Here, the \texttt{testVal} object holds the sepal and petal length and width; wh
 
 \paragraph{Instructions for Running the Iris-Classifier Application} First, we must open our web-server application; once launched, we must select which folder we'd like to run out of, which in this case is \texttt{dlaicourse.TensorFlow Deployment/Course 1 - TensorFlow-JS/Week 1/Examples/}. Once the folder is selected, click on the Web-Server URL which then opens a new tab in your Chrome browser. From here, we can click on the \texttt{html} file we want to run, in this case the \texttt{iris-classifier.html} file.
 
+\subsection{Creating Convolutional Neural Networks in JavaScript} We've seen how we can get a simple neural network running in a browser, and this next section will teach more advanced concepts. Specifically, we'll build a convolutional neural network in a web-browser that can process images. In particular, we're going to work with MNIST dataset, which consists of tens-of-thousands of images; opening up 10k HTTP connections would be problematic, and instead we'll see how we can combine all images into a single spreadsheet file which can then be donwloaded, sliced, and trained on.
+
+\subsubsection{Creating a Convolutional Net with JavaScript} Although we're familiar with coding CNN's using Python, there are a few minor syntactical changes to be aware of when coding in JavaScript. The largest discrepancies are outside of the model definition, with e.g. code that fetches the images or processes an image for classification. In this section, we will
+\begin{itemize}
+\item train a convolutional neural network for image classification in the   browser, and
+\item write a browser app that takes these images and passes them to the classifier.
+\end{itemize}
+Let's look at the code for creating a conv-net in JavaScript.
+\begin{lstlisting}[language=JavaScript]
+  model = tf.sequential();
+  model.add(tf.layers.conf2d({inputShape: [28, 28, 1],
+            kernelSize: 3, filters: 8, activation: 'relu'}));
+  model.add(tf.layers.maxPooling2d({poolSize: [2, 2]}));
+  model.add(tf.layers.conv2d({filters: 16,
+            kernelSize: 3, activation: 'relu'}));
+  model.add(tf.layers.maxPooling2d({poolSize: [2, 2]}));
+  model.add(tf.layers.flatten());
+  model.add(tf.layers.dense({units: 128, activation: 'relu'}));
+  model.add(tf.layers.dense({units: 10, activation: 'softmax'}));
+\end{lstlisting}
+By declaring our model as a \texttt{tf.sequential()}, we are specifying that the model will be defined via a \emph{sequence} of layers. Our first layer is a 2-d convolution, which takes in our $28 \times 28$ MNIST dataset in monochrome format. The parameter \texttt{kernelSize: 3} indicates we want $3 \times 3$ filters. By using a Rectified-Linear Unit, we're filtering out values less than zero. The next step specifies a $2 \times 2$ max-pooling step. The call to \texttt{tf.layers.flatten()} takes our 2-D image array and flattens it into a 1-D vector, from which we will attempt to learn a mapping to the 10 different possible output digits, i.e. the labels. To compile the model, we must specify a loss function and an optimizer, as well as any metrics we'd like to track; note that we pass parameters via a JavaScript dictionary (hence the braces).
+\begin{lstlisting}[language=JavaScript]
+  model.compile(
+     {  optimizer: tf.train.adam(),
+        loss: 'categoricalCrossEntropy',
+        metrics: ['accuracy']
+     };
+\end{lstlisting}
+Training the model is done with the \texttt{fit()} method.
+\begin{lstlisting}[language=JavaScript]
+  model.fit(trainXs, trainYs, {
+    batchSize: BATCH_SIZE,
+    validationData: [testXs, testYs],
+    epochs: 20,
+    shuffle: true,
+    callbacks: fitCallbacks
+});
+\end{lstlisting}
+We'll train our data in batches, which aside from theoretical benefits also prevents locking up the browser itself. Notice as well that we're allowing validation data to be passed so that we may report validation accuracy as we train. Shuffling the data helps prevent over-fitting if our data is grouped
+by label. We can of course also specify custom callbacks; we'll look at how to use \texttt{tf-vis} to render the outputs of our callbacks in the next section.
+
+\subsubsection{\href{https://github.com/tensorflow/tfjs/tree/master/tfjs-vis}{Visualizing the Training Process}}
+There are some extra tools we can use to make the visualization of training a lot more friendly. The first step is to include the library \texttt{tfjs-vis} in your code with a script.
+\begin{lstlisting}[language=JavaScript]
+  <script src="https://cdn.jsdelivr.net/npm@tensorflow/tfjs-vis"></script>
+\end{lstlisting}
+We can get access to the code and documentation at \url{https://github.com/tensorflow/tfjs-vis}.
+Previously, we had used a term \texttt{fitCallbacks} without talking about how its defined.
+\begin{lstlisting}[language=JavaScript]
+  const fitCallbacks = tfvis.show.fitCallbacks(container, metrics);
+\end{lstlisting}
+The \texttt{container} is responsible for rendering the feedback, and the \texttt{metric}s are what we are interested in tracking.
+\begin{lstlisting}[language=JavaScript]
+  const metrics = ['loss', 'val_loss', 'acc', 'val_acc'];
+  const container = { name: 'Model Training', styles: { height: '1000px' } };
+  const fitCallbacks = tfvis.show.fitCallbacks(container, metrics);
+\end{lstlisting}
+When we create the container, we just set a name and any required styles, and the visualization library will create the DOM elements to render the details. While training, the callback will create a container in which it will draw the feedback depending on the metrics we requested. Let's now segway to discuss how we handle training in browsers with lots of data.
+
+\subsubsection{Sprite Sheets}
+The last few videos shows how to train a model and visualize training progress. But in any training, we need data. MNIST contains 10's of thousands of images. When loading into Python, there's no issue. But in JavaScript we'd be making an HTTP request for each image, which at the very least is bad practice. One solution is to take all the images and stitch them into a sprite-sheet, which is a single spreadsheet which contains all images in the dataset.
+The MNIST sprite-sheet is stored here: \url{https://storage.googleapis.com/learnjs-data/model-builder/mnist_images.png}.
+\paragraph{Using the Sprite-Sheet} If we visit the above url, we'll see a single image that's 65,000 pixels tall and 784 pixels wide. Each $28 \times 28$ image is encoded into a row ($28^2 = 784$). The labels can be found at
+\url{https://storage.googleapis.com/learnjs-data/model-builder/mnist_labels_uint8}. The file is 650k bytes in size, i.e. 10 bytes per image. To understand this binary file, we'll need a hex-viewer, but if we open it in this way we can see that each row corresponds to a one-hot encoding of the label (a digit 0-9); in each row of the file there are nine zero bytes and one byte that is flipped on. Although this is not necessarily an efficient file format, it's easy to one-hot encode in memory because it's serialized as a one-hot encoding already. We have a \texttt{data.JS} file which is intended to handle this.
+
+\begin{lstlisting}[language=JavaScript]
+  export class MnistData {
+    ...
+    async load() {
+      // Download the sprite and slice it.
+      // Download the labels and decode them.
+    }
+    nextTrainBatch() {
+      // Get the next training batch.
+    }
+    nextTestBatch() {
+      // Get the next test batch.
+    }
+\end{lstlisting}
+
+The job of the \texttt{load} method is to download the spritesheet and labels, and decode them along with a helper function called \texttt{nextBatch} which is used to batch into specified train and test batch sizes. The other methods are responsible for getting batches of training data, i.e. slices off the image according to the desired size. Note that the \texttt{nextTrainBatch} keeps each image as a $1 \times 784$ vector of pixels and the calling function can resize them to $28 \times 28$. It also returns the appropriate labeled data. In order to initialize the data class and load the sprite, getting it ready for batching, all we need is the following code.
+\begin{lstlisting}[language=JavaScript]
+  const data = new MnistData();
+  await data.load();
+\end{lstlisting}
+Once you have a loaded instance of the data, we can now get the batches and resize them to be $28 \times 28$ like this.
+\begin{lstlisting}[language=JavaScript]
+  const [trainXs, trainYs] = tf.tidy(() => {
+    const d = data.nextTrainBatch(TRAIN_DATA_SIZE);
+    return [
+      d.xs.reshape([TRAIN_DATA_SIZE, 28, 28, 1]);
+      d.labels
+    ];
+  });
+\end{lstlisting}
+We intend to create an array containing the set of $X$s and $Y$s for training. Our function does this by getting the next batch from the training data source. By default, with MNIST the training data size is 5,500, and so we're basically fetching 5,500 lines of 784 bytes. We then reshape the data into a four-dimensional tensor with 5,500 in the first dimension, then $28 \times 28$ representing the image, then $1$ representing the monochromatic color-depth. That's the first element of the array, the second is the labels which are already one-hot encoded.
+
+\paragraph{Tidy Clause} The \texttt{tf.tidy()} let's us be good citizens of the web. The idea behind \texttt{tf.tidy()} is that once it's done using the allocated memory for the $5,500 \times 28 \times 28$ tensor, the runtime environment cleans up afterward. I.e. \texttt{d} gets cleaned up after we're done and it saves us a lot of memory.
 \end{document}
 
