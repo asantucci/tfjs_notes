@@ -357,7 +357,7 @@ which manages all that is needed to track your mouse movement and impress it upo
 The second argument within the call to \texttt{tf.browser.fromPixels(rawImage, 1)} signifies we only want one color channel. Since our input is of size $280 \times 280$, we need to call \texttt{tf.image.resizeBilinear} to transform our data into a $28 \times 28$ array that is compatible with our model. The call to \texttt{expandDims(0)} ensures that our resized image has an additional dimension corresponding to the color channel: it's a 4-dimensional tensor that we pass in to our model, where the first dimension describes the number of images, the second two are the x's and y's of the images, and the last is the color depth; we add a fourth dimension to our tensor with \texttt{expandDims(0)}. 
 \lstinputlisting[firstline=80,lastline=88,basicstyle=\tiny,language=JavaScript]{html_examples/script_mnist.js}
 \lstinputlisting[firstline=62,lastline=73,basicstyle=\tiny,language=JavaScript]{html_examples/script_mnist.js}
-So this creates our \texttt{rawImage}
+So we see that it's the \texttt{draw()} function which creates our \texttt{rawImage} that we then perform inference on.
 
 \end{document}
 
