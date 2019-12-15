@@ -6,6 +6,7 @@
 \usepackage{amsthm} 
 \usepackage{amsfonts} 
 \usepackage{enumitem}
+\usepackage{graphicx}
 \usepackage[T1]{fontenc}
 \usepackage{xparse} 
 \usepackage{bm}
@@ -317,11 +318,46 @@ We intend to create an array containing the set of $X$s and $Y$s for training. O
 
 \subsubsection{MNIST Classifier in Code} In its entirety.
 \lstinputlisting[basicstyle=\tiny,language=JavaScript]{html_examples/mnist.html}
-At the head we simply load a few libraries. In the body we create a canvas of size $280 \times 280$ such that it will scale down nicely to our MNIST input image size of $28 \times 28$. When you draw something on the canvas, in order to create an image we'll need an image id and so we do that in the next line of code. We'll also add two buttons: one for classifying and another for clearing the canvas. And then critically, there are two scripts we call; the first is \texttt{data\_mnist.js} which has the MNIST class we wrote previously: it downloads the sprite, slices it up, downloads the labels, slices them up, and gives you batches you can load into the classifier. The most important part to pay attention to is the \texttt{load()} method, and \texttt{nextTrainingBatch()}.
-\lstinputlisting[firstline=18,basicstyle=\tiny,language=JavaScript]{html_examples/data_mnist.js}
+At the head, we load in the latest version of TensorFlow.js alongside the \texttt{tfjs-viz} library which will give us a progress report as we train. In the body of the page, we create a canvas of size $280 \times 280$ such that it will scale down nicely to our MNIST input image size of $28 \times 28$. When you draw something on the canvas, in order to create an image we'll need an image id and so we do that in the next line of code. We'll also add two buttons: one for \emph{classifying} and another for \emph{clearing} the canvas. And then critically, there are two scripts we call; the first is \texttt{data\_mnist.js} which has the MNIST class we wrote previously: it downloads the sprite, slices it up, downloads the labels, slices them up, and gives you batches you can load into the classifier. The script \texttt{script\_mnist.js} contains everything else: it has the magic for handling the canvas, as well as model training and inference.
 
-The script \texttt{script\_mnist.js} contains everything else. In particular, notice that at the very bottom there is a call \texttt{document.addEventListener(DOMContentLoaded, run)}, which means that as soon as the document is loaded it'll call the \texttt{run()} function. This script has the magic for handling the Canvas that we're going to be doing handwriting on, it has the inference, and it also contains the training.
-\lstinputlisting[basicstyle=\tiny,language=JavaScript]{html_examples/script_mnist.js}
-The \texttt{draw()} function just manages all that is needed to track your mouse movement and impress it upon the canvas. Within \texttt{save()}, the second argument within the call to \texttt{tf.browser.fromPixels(rawImage, 1)} signifies we only want one color channel. Since our input is of size $280 \times 280$, we need to call \texttt{tf.image.resizeBilinear} to transform our data into a $28 \times 28$ array that is compatible with our model. The call to \texttt{expandDims(0)} ensures that our resized image has an additional dimension corresponding to the color channel.
+\paragraph{data.js}
+The most important part to pay attention to is the \texttt{load()} method, and \texttt{nextTrainingBatch()}. We first define some constants in our script, in particular our \texttt{load()} method will rely on the \texttt{MNIST\_IMAGES\_SPRITE\_PATH} and \texttt{MNIST\_LABELS\_PATH}.
+\lstinputlisting[firstline=18,lastline=30,basicstyle=\tiny,language=JavaScript]{html_examples/data_mnist.js}
+We create download an image, slice it out, and store it in memory.
+\lstinputlisting[firstline=44,lastline=83,basicstyle=\tiny,language=JavaScript]{html_examples/data_mnist.js}
+Similarly for the labels, we download the labels which are already one-hot encoded.
+\lstinputlisting[firstline=85,lastline=87,basicstyle=\tiny,language=JavaScript]{html_examples/data_mnist.js}
+Then there's the function that's responsible for procuring the next training batch; it takes in the batch size and takes that slice off of the images and returns that for us as a \emph{set} of images (and ditto for the test batch). Since there are 55k training images and 10k testing images, so this will get us 10 batches of 5,500 of training and 10 batches of 1k for testing. 
+\lstinputlisting[firstline=106,lastline=121,basicstyle=\tiny,language=JavaScript]{html_examples/data_mnist.js}
+This next function is the one that actually does the bookkeeping, by managing the index within the array of the data to be able to know where to slice from to get the next batch.
+\lstinputlisting[firstline=123,lastline=137,basicstyle=\tiny,language=JavaScript]{html_examples/data_mnist.js}
+
+% In its entirety:
+% \lstinputlisting[firstline=18,basicstyle=\tiny,language=JavaScript]{html_examples/data_mnist.js}
+
+\paragraph{script.js}
+In particular, notice that at the very bottom there is a call which signifies that as soon as the document is loaded it'll call the \texttt{run()} function.
+
+\lstinputlisting[firstline=116,lastline=116,basicstyle=\tiny,language=JavaScript]{html_examples/script_mnist.js}
+
+Let's see what the \texttt{run()} function does. It creates an object called \texttt{data} which is a new instance of our MNIST class. When it calls \texttt{load()}, it fetches the sprite and loads the images into memory. Next, we set up a model, which we'll look at momentarily.
+\lstinputlisting[firstline=106,lastline=114,basicstyle=\tiny,language=JavaScript]{html_examples/script_mnist.js}
+Here's our model, which should be fairly straightforward to understand at this point.
+
+\lstinputlisting[firstline=7,lastline=21,basicstyle=\tiny,language=JavaScript]{html_examples/script_mnist.js}
+
+The next step in \texttt{run()} is to use \texttt{tf-viz} to show us the model architecture (a pretty-print of what the layers look like). We then train our model; this is an asynchronous function and we pass it the model as well as our reference to data. We can take a look at how \texttt{train()} operates. The first thing it does is set up the \texttt{callbacks}. We then specify our data sizes, and we get the next training and test batch from the data, where in particular we're using \texttt{tidy()} to avoid having these objects sitting around in memory when we're done computing with them. Since the image was downloaded as part of a sprite, we need to call \texttt{reshape} to get it into a $28 \times 28 \times 1$ tensor (recall we're the last dimension describes the monochrome of the image). Lastly, when we want to actually train the model, we call \texttt{fit()} where we supply \texttt{trainXs} and \texttt{trainYs}, as well as supplying our additional validation data and our callbacks.
+\lstinputlisting[firstline=23,lastline=54,basicstyle=\tiny,language=JavaScript]{html_examples/script_mnist.js}
+
+Once we're done training, \texttt{run()} calls \texttt{init()} which sets up our UI. The UI has our canvas, as well as the methods associated with it that allow us to draw with our mouse. There's also the \texttt{save} button which does the inferene and the \texttt{clear} button which resets our canvas; we simply add an event-listener to each of these. 
+\lstinputlisting[firstline=90,lastline=103,basicstyle=\tiny,language=JavaScript]{html_examples/script_mnist.js}
+
+The important function is actually \texttt{save()}, which is responsible for our inference. We start by calling \texttt{rawPixels()}. This is actually obtained as output from our \texttt{draw()} function,
+which manages all that is needed to track your mouse movement and impress it upon the canvas. 
+The second argument within the call to \texttt{tf.browser.fromPixels(rawImage, 1)} signifies we only want one color channel. Since our input is of size $280 \times 280$, we need to call \texttt{tf.image.resizeBilinear} to transform our data into a $28 \times 28$ array that is compatible with our model. The call to \texttt{expandDims(0)} ensures that our resized image has an additional dimension corresponding to the color channel: it's a 4-dimensional tensor that we pass in to our model, where the first dimension describes the number of images, the second two are the x's and y's of the images, and the last is the color depth; we add a fourth dimension to our tensor with \texttt{expandDims(0)}. 
+\lstinputlisting[firstline=80,lastline=88,basicstyle=\tiny,language=JavaScript]{html_examples/script_mnist.js}
+\lstinputlisting[firstline=62,lastline=73,basicstyle=\tiny,language=JavaScript]{html_examples/script_mnist.js}
+So this creates our \texttt{rawImage}
+
 \end{document}
 
