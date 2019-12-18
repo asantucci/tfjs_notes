@@ -384,6 +384,84 @@ Note that if we look at the results that have been logged to console, only to th
 Note that in the head block we see two \emph{script} tags, and these load in TensorFlow.js and the model. Then, in the body of the page we're specifying that we have an image and a \texttt{div} with a nice big font: we're going to have ``courier font'' sized 24-pixel, and we'll make the \texttt{div} 300 pixels high. The second script block is placed \emph{beneath} the script body, such that our libraries are loaded before the script executes. In this script, we'll obtain a handle to our image that we loaded, as well as our output. We load our model, and once it's done we can pass an image directly to it; we don't have to worry about any of the underlying implementation details like how to manipulate and transform raw tensors. We loop through our predictions (in this case the model spits out the top three categories of the thousand possible) and we'll create add HTML to the output which will just be a new line followed by the class name of thte prediction followed by the probability of the prediction.
 
 \subsection{Converting Models to JSON Format}
+We've seen how using existing pre-trained models is very easy to do in the browser using JavaScript. In this section, we'll quickly go over how to build and train a neural network for ourselves in Python and then write the output to a format amenable for ingesting in JavaScript. In particular, we'll revisit our network that learns the relationship where $y = 2x - 1$. In order to convert our model, we'll need to install the following module in Python:
+\begin{verbatim}
+pip install tensorflowjs
+\end{verbatim}
+We can now create and train our network, in Python.
+\begin{lstlisting}[language=Python]
+  import numpy as np
+  import tensorflow as tf
+  from tensorflow import keras
+  print(tf.__version__)
+  model = tf.keras.Sequential([keras.layers.Dense(units = 1, input_shape=[1])])
+  model.compile(optimizer='sgd', loss='mean_squared_error')
+  xs = np.array([-1.0,  0.0, 1.0, 2.0, 3.0, 4.0], dtype=float)
+  ys = np.array([-3.0, -1.0, 1.0, 3.0, 5.0, 7.0], dtype=float)
+  model.fit(xs, ys, epochs=500)
+\end{lstlisting}
+If we want to predict a value, we can do so via \texttt{print(model.predict([10.0]))} where we expect to realize a value very close to 19. In order to save our model, we're going to start by generating a directory to save our file in, and we do this using a timestamp.
+\begin{lstlisting}[language=JavaScript]
+  import time
+  saved_model_path = '/tmp/saved_models/{}'.format(int(time.time()))
 
+  # For TensorFlow 2.0, use this:
+  # tf.keras.experimental.export_saved_model(model, saved_model_path)
+
+  # For TensorFlow 1.x, use this:
+  tf.contrib.saved_model.save_keras_model(model, saved_model_path)
+\end{lstlisting}
+These codes simply write the model to the specified path on disk.
+The following command will convert a saved model that was stored in a TensorFlow.js format. From the command line:
+\begin{verbatim}
+tensorflowjs_converter \
+   --input_format=keras_saved_model \
+   /tmp/saved_models/time_stamp_returned/from_prev_ste \
+   /tmp/linear
+\end{verbatim}
+where we emphasize that one of the arguments is simply the timestamp named directory that we created a few moments ago. The last argument is the output directory where we want the JSON file to be saved. Let's consider an HTML page with the model hosted in it.
+
+\lstinputlisting[basicstyle=\tiny,language=JavaScript]{html_examples/linear.html}
+
+Note that the \texttt{run()} function is asynchronous because we have to wait to load the layers model. In general, this is similar to what we've seen before: we first load the script containing TensorFlow.js latest version, and then we write another script to execute code in a block. First, notice that we have a model-URL, which must be loaded over HTTP. While this file resides in the same directory as our HTML, we still use the URL path to it. To translate a JSON file into a model we use \texttt{await tf.loadLayersModel()}, passing the relevant URL.
+
+\subsection{Re-training MobileNet}
+This section we'll learn how to build a system where we can use a webcam to capture an image, then train and run a classifier that lets us play a game of rock, paper, scissors. This involves getting JavaScript in the browser, doing training within the browser, transfer learning off an existing model, and even interacting with a webcam. In particular, to execute on transfer learning we're going to freeze some of the layers of a pre-trained network, then train a new neural network using these extracted features from MobileNet.
+
+\subsubsection{Building a webpage with a webcam}
+We want to build a simple web-page that contains a video \texttt{div} in which we'll render the webcam. Let's build a page that renders a live-stream of the webcam, and it will also initialize everything we need to start capturing from the webcam and converting the data into tensors which will be used to train the network; the \texttt{webcam.js} script has been open-sourced by Google to facilitate capturing images and transforming them into tensors.
+\begin{verbatim}
+<html>
+<head>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"> </script>
+<script src="webcam.js"></script>
+</head>
+<body>
+  <div>
+    <div>
+      <video autoplay playsinline muted id="wc" width = "224" height = "224"></video>
+    </div>
+  </div>
+</body>
+<script src="index.js"></script>
+</html>
+\end{verbatim}
+The video emph{tag} defines a video area on the page. Lastly, the \texttt{index.js} is a file where we'll write most of our code: we'll use it to initialize our webcam. By declaring the \texttt{MobileNet} and \texttt{Model} variables at the top of the script, we allow them to be shared across other functions within the script. In particular, the third line below creates a webcam object (defined in \texttt{webcam.js}) which is initialized by pointing to the video element in the hosting webpage that we call \texttt{wc} for the webcam.
+\lstinputlisting[firstline=1,lastline=3,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_index.js}
+We're then interested to call the \texttt{init()} function, which for now will just set up the webcam, load our MobileNet model by chopping off the last few layers to facilitate transfer learning, and initialize a prediction.
+\lstinputlisting[firstline=104,lastline=109,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_index.js}
+
+Our next function of interest is the \texttt{loadMobilenet()} that we just saw get called above within \texttt{init()}; this function will eventually allow us to re-train the model. As before, we'll load the JSON model from its hosted URL into an object, using \texttt{tf.loadLayersModel()} to do so. From here, we can select a particular layer (in this case called ``p13 relu'') and choose to re-train the layers between the input and this layer. We'll construct a \emph{new} model: it accepts what MobileNet accepts as input (an image tensor), and outputs features in a form specified by the transformations up through the selected output layer.  
+\lstinputlisting[firstline=8,lastline=12,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_index.js}
+
+Let's now consider how we're going to train our model, as transfer learning works a bit differently in TensorFlow.js. Instead of adding new densely connected layers on top of our frozen layers from the original model, we'll create a \emph{new} model with the input shape being the output of the (intermediate layer of) MobileNet; we'll treat this as a separate model that we then train. At prediction time, we first get a prediction from truncated MobileNet which produce a set of embeddings (or features), which we then pass in to our new model to get a prediction. Since we're defining a new model, we'll use the usual syntax of \texttt{tf.sequential()}. We set up a single hidden layer with a hundred neurons and then output one of our three specific classes corresponding to rock, paper, scissors.
+\lstinputlisting[firstline=14,lastline=36,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_index.js}
+Thus, the general flow of our program will be, at a high level:
+\begin{lstlisting}[language=JavaScript]
+  const embeddings = mobilenet.predict(img);
+  const predictions = model.predict(embeddings);
+\end{lstlisting}
+
+\subsubsection{Capturing the Data}
 \end{document}
 
