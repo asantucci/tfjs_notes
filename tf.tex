@@ -213,7 +213,7 @@ Notice that we're passing our \texttt{convertedData} as argument to our training
 If we hadn't used \texttt{await} above when training our model, our call to predict would yield funky results as we'd be performing inference on a model that isn't (fully) trained. 
 Here, the \texttt{testVal} object holds the sepal and petal length and width; when we pass it to the predict method, we get a tensor back with a prediction in it. Here's the script in its entirety.
 
-\lstinputlisting[basicstyle=\tiny]{html_examples/iris-classifier.html}
+\lstinputlisting[basicstyle=\tiny,language=HTML]{html_examples/iris-classifier.html}
 
 \paragraph{Instructions for Running the Iris-Classifier Application} First, we must open our web-server application; once launched, we must select which folder we'd like to run out of, which in this case is \texttt{dlaicourse.TensorFlow Deployment/Course 1 - TensorFlow-JS/Week 1/Examples/}. Once the folder is selected, click on the Web-Server URL which then opens a new tab in your Chrome browser. From here, we can click on the \texttt{html} file we want to run, in this case the \texttt{iris-classifier.html} file.
 
@@ -317,7 +317,7 @@ We intend to create an array containing the set of $X$s and $Y$s for training. O
 \paragraph{Tidy Clause} The \texttt{tf.tidy()} let's us be good citizens of the web. The idea behind \texttt{tf.tidy()} is that once it's done using the allocated memory for the $5,500 \times 28 \times 28$ tensor, the runtime environment cleans up afterward. I.e. \texttt{d} gets cleaned up after we're done and it saves us a lot of memory. In particular, when it is executed, it cleans up all intermediate tensors allocated by a function excehpt those returned by the function.
 
 \subsubsection{MNIST Classifier in Code} In its entirety.
-\lstinputlisting[basicstyle=\tiny,language=JavaScript]{html_examples/mnist.html}
+\lstinputlisting[basicstyle=\tiny,language=HTML]{html_examples/mnist.html}
 At the head, we load in the latest version of TensorFlow.js alongside the \texttt{tfjs-viz} library which will give us a progress report as we train. In the body of the page, we create a canvas of size $280 \times 280$ such that it will scale down nicely to our MNIST input image size of $28 \times 28$. When you draw something on the canvas, in order to create an image we'll need an image id and so we do that in the next line of code. We'll also add two buttons: one for \emph{classifying} and another for \emph{clearing} the canvas. And then critically, there are two scripts we call; the first is \texttt{data\_mnist.js} which has the MNIST class we wrote previously: it downloads the sprite, slices it up, downloads the labels, slices them up, and gives you batches you can load into the classifier. The script \texttt{script\_mnist.js} contains everything else: it has the magic for handling the canvas, as well as model training and inference.
 
 \paragraph{data.js}
@@ -367,20 +367,20 @@ We've seen that in several scenarios, training in the browser requires some kind
 \paragraph{Pre-trained TensorFlow.js models} Are available at \url{https://github.com/tensorflow/tfjs-models}. In particular, we'll first consider \url{https://github.com/tensorflow/tfjs-models/tree/master/toxicity}.
 
 \subsubsection{Toxicity Classifier} We can easily view the entirety of the html page. Notice that we first load in two scripts: (i) the latest version of TensorFlow.js and (ii) the toxicity model. We set our threshold to be 0.9, which will describe a probability label an instance as toxic. We will load the toxicity model, initializing with said threshold, and we will use this model to classify some sentence(s).
-\lstinputlisting[basicstyle=\tiny,language=JavaScript]{html_examples/toxicity.html}
+\lstinputlisting[basicstyle=\tiny,language=HTML]{html_examples/toxicity.html}
 We can pass our sentences to the model, and as a result we get back a set of predictions; we will log-out the predictions so that we can take a look at them. Our model will output a probability for each of the categories of toxicity.
 
 \subsubsection{MobileNet} MobileNet is a small, low-latency, low-power model that is parameterized to meet the resource constraints of a variety of use cases. There are versions that can be built upon for classification, detection, embeddings, and other segmentation similar to how models like Inception operate. MobileNets are trained to recognize a thousand different classes, see a listing here:
 \url{http://www.laurencemoroney.com/wp-content/uploads/2019/04/labels.txt}.
 
 Using the pre-trained MobileNet in JavaScript is quite simple. As before, you simply include the script for both TensorFlow.js and for MobileNet.
-\lstinputlisting[firstline=3,lastline=4,basicstyle=\tiny,language=JavaScript]{html_examples/mobilenet.html}
+\lstinputlisting[firstline=3,lastline=4,basicstyle=\tiny,language=HTML]{html_examples/mobilenet.html}
 We're going to classify the contents of an image, and write out the predictions to the page. So, in the \emph{body} of our page we'll need to place an image tag and a \texttt{div} to contain the output of the text.
-\lstinputlisting[firstline=6,lastline=9,basicstyle=\tiny,language=JavaScript]{html_examples/mobilenet.html}
+\lstinputlisting[firstline=6,lastline=9,basicstyle=\tiny,language=HTML]{html_examples/mobilenet.html}
 As the code is written, the image should reside in the same working directory as the MobileNet.html file which is where we've pointed our web-server to run this example. We'll next need a \emph{script} to pass an image to the MobileNet model and get a set of predictions back. Because we want the code here to execute after the page has loaded, then at the very least we must place this code at the bottom of the html file after the closing \emph{body} tag. Or, if you're familiar with the DOM model, you can call it when the DOM has finished loading. For now, we keep things simple by placing it below the closing body tag.
-\lstinputlisting[firstline=10,lastline=21,basicstyle=\tiny,language=JavaScript]{html_examples/mobilenet.html}
+\lstinputlisting[firstline=10,lastline=21,basicstyle=\tiny,language=HTML]{html_examples/mobilenet.html}
 Note that if we look at the results that have been logged to console, only to the top three classes and their associated probabilities have been output. Within the \texttt{for}-loop, we are adding a \emph{break} character, the prediction \texttt{className}, and the probability for that \texttt{className} to the \texttt{innerHTML} of the \texttt{div}. Let's have a look at the code in its entirety.
-\lstinputlisting[basicstyle=\tiny,language=JavaScript]{html_examples/mobilenet.html}
+\lstinputlisting[basicstyle=\tiny,language=HTML]{html_examples/mobilenet.html}
 Note that in the head block we see two \emph{script} tags, and these load in TensorFlow.js and the model. Then, in the body of the page we're specifying that we have an image and a \texttt{div} with a nice big font: we're going to have ``courier font'' sized 24-pixel, and we'll make the \texttt{div} 300 pixels high. The second script block is placed \emph{beneath} the script body, such that our libraries are loaded before the script executes. In this script, we'll obtain a handle to our image that we loaded, as well as our output. We load our model, and once it's done we can pass an image directly to it; we don't have to worry about any of the underlying implementation details like how to manipulate and transform raw tensors. We loop through our predictions (in this case the model spits out the top three categories of the thousand possible) and we'll create add HTML to the output which will just be a new line followed by the class name of thte prediction followed by the probability of the prediction.
 
 \subsection{Converting Models to JSON Format}
@@ -421,7 +421,7 @@ tensorflowjs_converter \
 \end{verbatim}
 where we emphasize that one of the arguments is simply the timestamp named directory that we created a few moments ago. The last argument is the output directory where we want the JSON file to be saved. Let's consider an HTML page with the model hosted in it.
 
-\lstinputlisting[basicstyle=\tiny,language=JavaScript]{html_examples/linear.html}
+\lstinputlisting[basicstyle=\tiny,language=HTML]{html_examples/linear.html}
 
 Note that the \texttt{run()} function is asynchronous because we have to wait to load the layers model. In general, this is similar to what we've seen before: we first load the script containing TensorFlow.js latest version, and then we write another script to execute code in a block. First, notice that we have a model-URL, which must be loaded over HTTP. While this file resides in the same directory as our HTML, we still use the URL path to it. To translate a JSON file into a model we use \texttt{await tf.loadLayersModel()}, passing the relevant URL.
 
@@ -462,6 +462,26 @@ Thus, the general flow of our program will be, at a high level:
   const predictions = model.predict(embeddings);
 \end{lstlisting}
 
-\subsubsection{Capturing the Data}
+\subsubsection{Capturing the Data} In this section, we're going to see how we can capture a sample from the webcam, encode it for training, and then train a new neural network with the transferred features from MobileNet. The first set of changes we incorporate into our HTML file is the addition of three buttons: one for each type of example that we want to capture. Correspondingly, there are three output \texttt{div}s which will render the number of samples that have been captured for each type of category we intend to classify. Lastly, there's a button to start the training.
+\lstinputlisting[firstline=13,lastline=19,basicstyle=\tiny,language=HTML]{html_examples/course_1_week_4_retrain.html}
+Notice that each of the three buttons for gathering data share the same \texttt{handleButton} as their \texttt{onClick} event-handler; the id's of these buttons are useful in other functions. We also remark that we've named the \texttt{div}s for reporting the number of samples of each type.  Let's look at how our \texttt{onClick} event-handler works for when we are gathering data. Note that when we call \texttt{handleButton}, we pass as argument \texttt{this},
+which is a reference to the button or HTML element, and so in turn we have access to an \texttt{id} attribute that distinguishes Rock from Paper from Scissors. We can \texttt{switch} on this \texttt{id}, where in particular we find the corresponding \texttt{div} and update its text to display the appropriate number of samples collected so far.
+\lstinputlisting[firstline=39,lastline=58,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_index.js}
+After incrementing the appropriate category, we can extract the \texttt{id} attribute and parse it as an integer to construct a \texttt{label}. We'll then capture the contents of the webcam. Notice that we are \emph{not} adding the captured image directly to the dataset, but instead we're adding the prediction of the image alongside its associated label; this is because the input to our model is the output of our truncated MobileNet, i.e. some higher-level learned features from MobileNet. We then train our new network on these embeddings instead of the raw webcam data, and this effectively facilitates transfer learning. Lastly, notice that we output the label as a zero, one, or two (and it's not yet one-hot encoded).
+
+\paragraph{The Dataset Class} The first step is that in our HTML file, we'll need to create a script tag which loads our dataset class.
+\lstinputlisting[firstline=5,lastline=5,basicstyle=\tiny,language=HTML]{html_examples/course_1_week_4_retrain.html}
+Before we can use the dataset class in our \texttt{index.js} file, we have to declare it.
+\lstinputlisting[firstline=4,lastline=4,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_index.js}
+We can inspect our \texttt{rps dataset} class, which is defined within \texttt{rps-dataset.js}. First, note the \texttt{labels}: as we add new examples to our training set, we must keep track of their labels and that's what our \texttt{labels} array is used for; when we initialize the class we simply set this to an empty array. Next, we have a function \texttt{addExample(example, label)}, where the \texttt{example} is actually the embedding obtained from truncated MobileNet, and the \texttt{label} value is zero, one, or two for rock, paper, or scissors accordingly. Next, we use a little bit of \texttt{if-else} logic to handle the accumulation of data.
+\lstinputlisting[firstline=1,lastline=16,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_rps-dataset.js}
+For the first sample, our \texttt{xs} are \texttt{null}, and so we set the \texttt{xs} to \texttt{tf.keep()} for the \texttt{example} embedding; we also append to our labels array. Note that \texttt{tf.keep()} tells TensorFlow that we want to keep this tensor even if a \texttt{tidy()} is later called. For all subsequent samples, we simply append the new example to the old. We choose to keep \texttt{labels} as integers (zero, one, or two) as it is a more space-efficient representation when compared with a one-hot encoding, which we will save until the last step.
+\lstinputlisting[firstline=18,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_rps-dataset.js}
+When we train, we'll want to rely on \texttt{ys}, but so far we've only accumulated \texttt{labels}. The above function first sets the \texttt{ys} to \texttt{null} and then one-hot encodes the results into \texttt{dataset.ys}.
+
+\paragraph{Training the Network with Captured Data}
+We're at the point where we can think about training our network. First, we need to one-hot encode the labels in the dataset. We define the layers used in our model, taking care to note that we're starting with inputs as taken from truncated MobileNet embedding space.
+\lstinputlisting[firstline=14,lastline=36,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_index.js}
+
 \end{document}
 
