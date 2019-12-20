@@ -446,7 +446,7 @@ We want to build a simple web-page that contains a video \texttt{div} in which w
 <script src="index.js"></script>
 </html>
 \end{verbatim}
-The video emph{tag} defines a video area on the page. Lastly, the \texttt{index.js} is a file where we'll write most of our code: we'll use it to initialize our webcam. By declaring the \texttt{MobileNet} and \texttt{Model} variables at the top of the script, we allow them to be shared across other functions within the script. In particular, the third line below creates a webcam object (defined in \texttt{webcam.js}) which is initialized by pointing to the video element in the hosting webpage that we call \texttt{wc} for the webcam.
+The video emph{tag} defines a video area on the page that allows us to display what the webcam is seeing. Lastly, the \texttt{index.js} is a file where we'll write most of our code: we'll use it to initialize our webcam. By declaring the \texttt{MobileNet} and \texttt{Model} variables at the top of the script, we allow them to be shared across other functions within the script. In particular, the third line below creates a webcam object (defined in \texttt{webcam.js}) which is initialized by pointing to the video element in the hosting webpage that we call \texttt{wc} for the webcam.
 \lstinputlisting[firstline=1,lastline=3,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_index.js}
 We're then interested to call the \texttt{init()} function, which for now will just set up the webcam, load our MobileNet model by chopping off the last few layers to facilitate transfer learning, and initialize a prediction.
 \lstinputlisting[firstline=104,lastline=109,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_index.js}
@@ -482,6 +482,31 @@ When we train, we'll want to rely on \texttt{ys}, but so far we've only accumula
 \paragraph{Training the Network with Captured Data}
 We're at the point where we can think about training our network. First, we need to one-hot encode the labels in the dataset. We define the layers used in our model, taking care to note that we're starting with inputs as taken from truncated MobileNet embedding space.
 \lstinputlisting[firstline=14,lastline=36,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_index.js}
+
+\subsection{Performing Inference from the Webcam Feed}
+We've created a page that hosts TensorFlow.js, a downloaded and truncated MobileNet
+model set up for transfer learning, as well as methods for gathering data which can be used
+to train a model. In this video, we'll focus on how to pull frames from the webcam and pass
+them to the model for inference. We'll start by editing our HTML page, adding a \texttt{div}
+with basic instructions, a button to start inference, and another to end inference, as well
+as a \texttt{div} to output the results. Note that we have yet to write the functions that start and stop predicting,
+but they will end up outputting to the \tetxtt{div} with predictions that we've named ``prediction''.
+\lstinputlisting[firstline=20,lastline=23,basicstyle=\tiny,language=HTML]{html_examples/course_1_week_4_retrain.html}
+
+Next let's look at our \texttt{startPredicting()} function, which simply toggles a boolean \texttt{isPredicting}
+and calls the \texttt{predict()} function. A very similar design pattern is reflected in \texttt{stopPredicting()}.
+\lstinputlisting[firstline=94,lastline=102,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_index.js}
+
+The general flow of \texttt{predict()} is that it first obtains a prediction by reading a frame from the
+webcam and classifying it, then evaluates the prediction and updates the UI with an ``I see \_\_\_'',
+and lastly there is some cleanup that is performed. Examine the \texttt{predictedClass} function: it reads a frame from
+the webcam, runs it through truncated MobileNet to obtain an embedding, then feeds this through our model to obtain a prediction;
+we translate our prediction into a 1D tensor before classifying according to the probability that is largest (this last step of calling \texttt{argmax} returns a zero, one, or two). With our classification in hand, we can now update the user-interface to reflect
+what the model has seen. This process starts with a call to our \texttt{predictedClass.data()} where we extract the predicted
+class id. We then enter a self-explanatory \texttt{switch} statement before updating the ``prediction'' \texttt{div} on the webpage.
+\lstinputlisting[firstline=60,lastline=87,basicstyle=\tiny,language=JavaScript]{html_examples/course_1_week_4_index.js}
+It's in the call to \texttt{predictClass.dispose()} that we actually trigger the \texttt{tf.tidy()} we saw previously. We also call
+\texttt{tf.nextFrame()} which is a TensorFlow function that prevents us from locking up the UI on the web browser.
 
 \end{document}
 
