@@ -490,7 +490,7 @@ to train a model. In this video, we'll focus on how to pull frames from the webc
 them to the model for inference. We'll start by editing our HTML page, adding a \texttt{div}
 with basic instructions, a button to start inference, and another to end inference, as well
 as a \texttt{div} to output the results. Note that we have yet to write the functions that start and stop predicting,
-but they will end up outputting to the \tetxtt{div} with predictions that we've named ``prediction''.
+but they will end up outputting to the \texttt{div} with predictions that we've named ``prediction''.
 \lstinputlisting[firstline=20,lastline=23,basicstyle=\tiny,language=HTML]{html_examples/course_1_week_4_retrain.html}
 
 Next let's look at our \texttt{startPredicting()} function, which simply toggles a boolean \texttt{isPredicting}
@@ -508,5 +508,213 @@ class id. We then enter a self-explanatory \texttt{switch} statement before upda
 It's in the call to \texttt{predictClass.dispose()} that we actually trigger the \texttt{tf.tidy()} we saw previously. We also call
 \texttt{tf.nextFrame()} which is a TensorFlow function that prevents us from locking up the UI on the web browser.
 
+\subsection{Concluding remarks on browser based models with TensorFlow.js}
+We've seen how to use TensorFlow.js to deploy and train in a web browser. But one of the most important
+deployment scenarios is actually on mobile devices such as iOS or Android. For example, it's possible to
+take a phone that's disconnected from the internet, have it take a picture of a plant and perform inference
+to tell if the plant is diseased. Some of these deployment scenarios are made possible with TensorFlow Lite.
+
+\section{Device-based Models with TensorFlow Lite} We've seen how to build learning algorithms that run
+on a laptop or the cloud, but there's something even more magical about getting them to work
+in your hand, perhaps on your smartphone or even a lightweight embedded processor like an Arduino
+Raspberry Pi which can be bought for some tens of dollars. We can easily imagine image classification or
+object detection on a mobile phone, but it can be even more exciting to think about smart embedded systems
+that respond to visual or audio input. Laurence gives an example of a miniature robotic car that he built,
+which uses a Raspberry Pi running TensorFlow lite in order to learn how to drive: as one manually drives the
+car around a course, the system captures images and annotates them with device from the controller such
+as how much acceleration, braking, or turning was being applied...these then become labeled observations for
+training.
+
+\subsection{Machine Learning Models in Mobile and Embedded Systems} Here, we learn what it means to bring a machine
+learned model to a mobile device, including how to shrink the model to fit on the device, as well as the
+architecture of TensorFlow Lite. When we want to make our models available on resource constrained devices,
+it takes additional consideration.
+
+\subsubsection{Features and Components of Mobile AI}
+The goal a mobile AI model is to be lightweight and operate on small, low-power devices such as phones; they
+may not be as accurate as those which run on clusters in the cloud. TensorFlow Lite is designed to run on devices with
+low latency and without the need for an internet connection: this prevents the need for a round-trip communication
+cost. By utilizing on-device ML to operate, TensorFlow Lite also protects user privacy and reduces power consumption
+as we don't require a power-hungry network connection. Formally, TensorFlow Lite consists of two components: a \emph{converter}
+and an \emph{interpreter}. The Converter transforms TensorFlow models into a form that is efficient for reading by the interpreter.
+It also introduces some optimizations to reduce the model size and make the model more performant from an efficiency point of view.
+On the other hand, the interpreter is what runs on the mobile device and deals with inference of converted models; critically,
+the interpreter is responsible for executing models and client applications
+using a reduced set of TensorFlow's operators. It utilizes a custom memory allocator which is less dynamic, and this
+ensures minimal load and execution latency.
+
+\subsubsection{Architecture and Performance}
+After training a model, it has to go through a conversion before it can
+be used on a device; typically, models are saved using some common format and we then apply a TensorFlow Lite converter
+tool to flatten the model whereby it is prepped for mobile or embedded devices. We'll learn about this process in detail
+in this section. Another interesting point of discussion is how to perform inference of a compute-heavy machine learning model
+on a mobile device, since this is an inherently resource intensive task relative to the device which has limited processing
+and power. Inference must be performed rapidly and without overhead to enable realtime applications; to enable this, TensorFlow Lit
+can employ hardware acceleration libraries or APIs for select devices. For example, Android devices have a neural network API.
+Secondly, inference can be boosted with Edge TPU's which are solely built for operating on deep learning models (they are performant
+and have a lower power footprint whilst also being small in size). Another form of acceleration in TensorFlow Lite is
+what's known as a delegate: a way to pass your graph execution to hardware that's specialized to perform inference. E.g.
+there is a GPU delegate that can be used to accelerate models on devices which have an available GPU. GPU's have a
+Single Instruction Multiple Data architecture, meaning they can run many mathematical operations in parallel which makes them
+amenable toward deep learning inference.
+
+\paragraph{Under the Hood: What Happens When Converting a Model?} First, a canonical representation of the network is built,
+and then this undergoes a series of transformations such as removing unneccessary operations or substituting operations with ones
+that have a faster implementation. Then, a \href{https://en.wikipedia.org/wiki/Shader}{\emph{shader}}
+is generated and compiled based on the optimized graph using a
+Shader runtime; for Android this runtime is the \href{https://en.wikipedia.org/wiki/OpenGL_ES}{opengl es}, and for
+iOS they use \href{https://en.wikipedia.org/wiki/Metal_(API)}{Metal}. Here's a \href{https://www.youtube.com/watch?v=QSbAUxWfxQw}{video} on TensorFlow Lite GPU Delegates.
+
+\subsubsection{Optimization Techniques} Optimization is necessary because of the generally limited
+resources on mobile and embedded devices.  It's critical that deployed machine learning models have
+optimal model size, low latency, and low power consumption. It's even more important on edge devices where
+resources are further constrained and model evice and efficiency of computation can become a major concern.
+Some known methods are \emph{quantization} (which reduces the precision of the numbers in the weights
+and biases of the model), \emph{weight pruning} (which reduces the overal number of parameters), and
+\emph{model topology transforms} (whose goal is to convert to a more efficient model architecture). We'll mostly focus on
+quantization, which can give the biggest and most immediate gains.
+
+\paragraph{Quantization} The basic idea is to optimize your model with reduced precision representations of
+weights, and optionally activations for both storage and computation. One immediate benefit is that this optimization
+is available across all types of CPU platforms. We've also reduced the cost of memory access and the cost of storing
+intermediate activations. Note that there are some hardware accelerators that support fixed point accelerators but which
+do not support floating point operations. So it turns out that it's possible to \emph{either} start out with a model
+that's already optimized (and we'll learn about these in this course section), \emph{or} we can convert using TF Lite
+to optimize them for mobile performance.
+
+\subsubsection{Saved Model Format} The process that we go through looks like this.
+\begin{itemize}
+\item We first train a model using TensorFlow.
+\item We save the model as a \texttt{SavedModel}.
+\item We then use the TFLite converter to produce a TFLite model.
+\end{itemize}
+
+When we create a model using TensorFlow via the Keras API (or even with a low level API), we will save out the model as a Keras model, a \texttt{SavedModel}, or a set of concrete in-memory functions. The converter takes these and converts to the TFLite format which is a flat buffer that can be used on the mobile device, along with optional back-ends like neural network APIs or GPUs. In Python, we can call \texttt{tf.lite.TFLiteConverter()} to do the conversion.
+
+\paragraph{SavedModel} The preferred standard methodology for saving models in TensorFlow 2.0 is to use the \texttt{SavedModel} format. It's been designed as a universal, language neutral recoverable way of serializing a TensorFlow model. With this format, we can easily deploy within TFLite, TF.js, TF Serving, or TF Hub. Even model versioning is supported. The format relies on a \emph{metagraph} which is essentially a data-flow graph comprising of any variables associated with the model, any additional assets such as a list of labels or classes that may be required, along with signatures for prediction (for example, the classification signature in the case of image classification). To understand the interfaces of signatures of a \texttt{SavedModel}, we can call a commnand line tool to get details about it:
+\begin{verbatim}
+saved_model_cli show --dir /tmp/mobilenet/1\
+                     --tag_set serve \
+                     --signature_dev serving_default
+\end{verbatim}
+This result will tell us what the expected dimensions of the inputs and outputs of the neural network are. To export a \texttt{SavedModel} built with Keras, we simply use
+\begin{lstlisting}[language=Python]
+  pretrained_model = tf.keras.applications.MobileNet()
+  tf.saved_model.save(pretrained_model, '/tmp/saved_model/1/')
+\end{lstlisting}
+In this case the number ``1'' in the save-path indicates a version number, and allows TensorFlow Serving to select the latest version of a model within a directory.
+
+\paragraph{Example: single hidden layer with a single hidden neuron} Let's create the simplest possible neural network.
+\begin{lstlisting}[language=Python]
+  import tensorflow as tf
+
+  # Store the data for x's and y's, where y = 2x-1.
+  x = [-1, 0, 1, 2, 3, 4]
+  y = [-3, -1, 1, 3, 5, 7]
+
+  # Create a simple Keras model.
+  model = tf.keras.models.Sequential(
+      [tf.keras.layers.Dense(units = 1, input_shape=[1])])
+  model.compile(optimizer = 'sgd', loss = 'mean_squared_error')
+  model.fit(x, y, epochs = 500)
+\end{lstlisting}
+Once we have a model, there's three steps to go through: (i) export the \texttt{SavedModel}, (ii) convert the model, and (iii) save the model.
+\begin{lstlisting}[language=Python]
+  import pathlib
+
+  # Export the SavedModel.
+  export_dir = '/tmp/saved_model'
+  tf.saved_model.save(model, export_dir)
+
+  # Convert the model.
+  converter = tf.lite.TFLiteConverter.from_saved_model(export_dir)
+  tflite_model = converter.convert()  # Produces a flattened version of the model.
+
+  # Save the model.
+  tflite_model_file = pathlib.Path('/tmp/foo.tflite')
+  tflite_model_file.write_bytes(tflite_model)  
+\end{lstlisting}
+
+\paragraph{Using a pre-existing model}
+The process is very similar.
+\begin{lstlisting}[language=Python]
+  import tensorflow as tf
+  import pathlib
+
+  # Load the MobileNet tf.keras model.
+  model = tf.keras.applications.MobileNetV2(weights='imagenet',
+                                            input_shape=(224,224,3))
+  # Saving the model for later use by tflite_convert.
+  model.save('model.h5')
+
+  # Convert the model.
+  converter = tf.lite.TFLiteConverter.from_keras_model(model)
+  tflite_model = converter.convert()
+
+  # Save the model.
+  tflite_model_file = pathlib.Path('/tmp/foo.tflite')
+  tflite_model_file.write_bytes(tflite_model)
+\end{lstlisting}
+\paragraph{Command Line Interface} There is even a command line interface in the event that you have the model sitting on disk.
+\begin{verbatim}
+# Saving with the command line from a SavedModel.
+tflite_convert --output_file=model.tflite --saved_model_dir=/tmp/saved_model
+
+# Saving with the command line from a Keras model.
+tflite_convert --output_file=model.tflite --keras_model_file=model.h5
+\end{verbatim}
+
+\paragraph{Quantization} One simple method to achieve this is post-training quantization. I.e. rather than quantizing a model during training and effectively having to change your training code, you simple quantize as part of the process of converting the model to the TFLite format. The simplest example could be converting all floats in the weights of the model to integers. In practice this can result in a 3x decrease in latency with only a relatively minor degredation in model accuracy. Let's look at an example where we over-ride the converter to optimize primarily for size.
+\begin{lstlisting}[language=Python]
+  import tensorflow as tf
+  converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+  converter.optimization = [tf.lite.Optimize.OPTIMIZE_FOR_SIZE]
+  tflite_quant_model = converter.convert()
+\end{lstlisting}
+We could have also specified that we wish to prioritize for latency or just leave the setting at its default in which case it balances priority for both small size and low latency. Note that in performing post-training quantization, we can make our models up to four times smaller It's also possible to further optimize by using calibration data whereby we first run inference on a small set of examples and then determine the appropriate scaling parameters to use when converting the model for integer quantization. How might that work? We first define a generator which is designed to take samples from our training dataset. We then se tour optimizer to balance for both size and latency. Finally, we pass our generator to the converter as a representative dataset: this means it's used for evaluating optimizations (i.e. by recording dynamic ranges). In particular, we can record multiple inferences on a floating point TF Lite model using the user-provided representative dataset as an input. We can then use the values logged from inferences to determine the scaling parameters needed to execute all tensors of the model in integer arithmetic. This allows us to quantize the activations along with the weights, and the resulting model will have as many quantized operations as possible. 
+\begin{lstlisting}[language=Python]
+  # Define a generator.
+  def generator():
+    data = tfds.load(...)
+    for _ in range(num_calibration_steps):
+      image, = data.take(1)
+      yield [image]
+
+  converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+
+  # Set the optimization mode.
+  converter.optimizations = [tf.lite.Optimize.DEFAULT]
+
+  # Pass the representative dataset to the converter.
+  converter.representative_dataset = tf.lite.RepresentativeDataset(generator)
+\end{lstlisting}
+For ops that don't have a quantized implementation, they'll fall back to floating point operations.
+\paragraph{TF-Select} Note that conversions can sometimes be difficult in the sense that we may stumble across TensorFlow operations that are unsupported by our TFLite converter. Since the set of TFLite operations is smaller than the set of TensorFlow regular C++ operations, not ever model is convertible. Even for supported operations, very specific usage patterns are sometimes expected or anticipated for performance reasons. For a full listing of supported operations, see \url{https://www.tensorflow.org/lite/guide/ops_compatibility}. Using \texttt{TF-Select}, we can use a subset of the TensorFlow operations when the built-in ones from TFLite do not suffice, keeping in mind that this will increase our model size marginally. Example usage:
+\begin{lstlisting}[language=Python]
+  import tensorflow as tf
+  converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+  converter.target_ops = [tf.lite.OpsSet.TFLITE_BUILTINS,
+                          tf.lite.OpsSet.SELECT_TF_OPS]
+  tflite_model = converter.convert()
+\end{lstlisting}
+Note the only difference here is that we specify \texttt{target\_ops} to also include a set of TensorFlow \texttt{select} operations.
+For more on TF-Select, see
+\url{https://www.tensorflow.org/lite/guide/ops_select}.
+
+\paragraph{Paths in Optimization} If you don't intend to quantize your model, you'll of course end up with a floating-point model. However, if you do wish to quantize just the weights you can do so by setting one of the post-training optimization modes in the converter. Although the converter will do its best to quantize all the ops, your model may still end up with a few floating point operations; the optimization provides latencies close to fully fixed point inference. We can get further latency improvements by quantizing both the weights and the activations with a representative dataset. If you wish to have a model that outputs only integers, a quantization target specification can be set in the converter to generate a model with quantized operations. Note that it's possible to test a model using Python before deploying it on an embedded system. To do this:
+\begin{lstlisting}[language=Python]
+  # Load TFLite model and allocate tensors.
+  interpreter = tf.lite.Interpreter(model_content=tflite_model)
+  interpreter.allocate_tensors()
+
+  # Get input and output tensors.
+  input_details = interpreter.get_input_details()
+  output_details = interpreter.get_output_details()
+
+  # Point the data to be used for testing and run the interpreter.
+  interpreter.set_tensor(input_details[0]['index'].input_data)
+  interpreter.invoke()
+  tflite_results = interpreter.get_tensor(output_details[0]['index'])
+\end{lstlisting}
 \end{document}
 
